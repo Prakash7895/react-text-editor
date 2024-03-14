@@ -1,16 +1,10 @@
 import { EditorBlock } from 'draft-js';
 
-// interface ICodeSnippet {
-//   contentState: ContentState;
-//   block: ContentBlock;
-//   selection: SelectionState;
-// }
-
 const CodeSnippet = (props: any) => {
   return (
-    <div className='bg-gray-100 p-1 border border-gray-300 rounded'>
+    <pre className='bg-gray-100 p-1 border-l-2 border-gray-300 mx-1'>
       <EditorBlock {...props} />
-    </div>
+    </pre>
   );
 };
 

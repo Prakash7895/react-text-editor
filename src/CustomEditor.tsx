@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Dispatch, FC, SetStateAction, useEffect, useRef } from 'react';
 import {
   DraftHandleValue,
   Editor,
@@ -17,11 +17,13 @@ enum EditTypes {
   UNDERLINE = '***',
 }
 
-const CustomEditor = () => {
+interface ICustomEditor {
+  editorState: EditorState;
+  setEditorState: Dispatch<SetStateAction<EditorState>>;
+}
+
+const CustomEditor: FC<ICustomEditor> = ({ editorState, setEditorState }) => {
   const editor = useRef<Editor>(null);
-  const [editorState, setEditorState] = useState(() =>
-    EditorState.createEmpty()
-  );
 
   const onChange = (eS: EditorState) => {
     setEditorState(eS);
@@ -35,22 +37,16 @@ const CustomEditor = () => {
     chars: string,
     editorState: EditorState
   ) => DraftHandleValue = (chars, eS) => {
-    console.log('Chars', chars);
     const selection = eS.getSelection();
     const block = eS
       .getCurrentContent()
       .getBlockForKey(selection.getStartKey());
     const text = block.getText();
 
-    console.log('text', text);
-    console.log('text.length', text.length);
-
     if (chars === ' ' && Object.values(EditTypes).includes(text as any)) {
       const currBlockType = RichUtils.getCurrentBlockType(eS);
-      const inlineStyles = eS.getCurrentInlineStyle();
 
       let newState;
-      console.log('currBlockType', currBlockType);
 
       const newContentState = Modifier.replaceText(
         eS.getCurrentContent(),
@@ -62,76 +58,161 @@ const CustomEditor = () => {
       );
       newState = EditorState.push(eS, newContentState, 'delete-character');
 
+      const inlineStyles = newState.getCurrentInlineStyle();
+
+      let removeInlineStyle = false;
+
       if (text === EditTypes.H1 && currBlockType !== 'header-one') {
         newState = RichUtils.toggleBlockType(newState, 'header-one');
+        removeInlineStyle = true;
       } else if (text === EditTypes.CODE && currBlockType !== 'CODE') {
         newState = RichUtils.toggleBlockType(newState, 'CODE');
-      } else if (text === EditTypes.BOLD && !inlineStyles.has('BOLD')) {
-        newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
-      } else if (text === EditTypes.REDTEXT && !inlineStyles.has('REDTEXT')) {
-        newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
-      } else if (
-        text === EditTypes.UNDERLINE &&
-        !inlineStyles.has('UNDERLINE')
-      ) {
-        newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+        removeInlineStyle = true;
+      } else if (text === EditTypes.BOLD) {
+        if (!inlineStyles.has('BOLD')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+        }
+        if (inlineStyles.has('UNDERLINE')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+        }
+        if (inlineStyles.has('REDTEXT')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
+        }
+      } else if (text === EditTypes.REDTEXT) {
+        if (inlineStyles.has('BOLD')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+        }
+        if (inlineStyles.has('UNDERLINE')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+        }
+        if (!inlineStyles.has('REDTEXT')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
+        }
+      } else if (text === EditTypes.UNDERLINE) {
+        if (inlineStyles.has('BOLD')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+        }
+        if (!inlineStyles.has('UNDERLINE')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+        }
+        if (inlineStyles.has('REDTEXT')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
+        }
+      }
+
+      if (removeInlineStyle) {
+        if (inlineStyles.has('BOLD')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+        }
+        if (inlineStyles.has('UNDERLINE')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+        }
+        if (inlineStyles.has('REDTEXT')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
+        }
       }
 
       if (newState) {
-        const newBlockType = RichUtils.getCurrentBlockType(newState);
-        console.log('newBlockType', newBlockType);
-
         onChange(newState);
         return 'handled';
       }
+    }
+
+    return 'not-handled';
+  };
+
+  const handleReturn: (e: any, editorState: EditorState) => DraftHandleValue = (
+    _,
+    eS
+  ) => {
+    const currContentState = eS.getCurrentContent();
+    const currSelection = eS.getSelection();
+
+    const newContentState = Modifier.splitBlock(
+      currContentState,
+      currSelection
+    );
+
+    const newEditorState = EditorState.push(eS, newContentState, 'split-block');
+
+    let newState = RichUtils.toggleBlockType(newEditorState, 'unstyled');
+
+    const inlineStyles = newState.getCurrentInlineStyle();
+
+    if (inlineStyles.has('BOLD')) {
+      newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+    }
+    if (inlineStyles.has('UNDERLINE')) {
+      newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+    }
+    if (inlineStyles.has('REDTEXT')) {
+      newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
+    }
+
+    onChange(newState);
+    return 'handled';
+  };
+
+  const handleKeyCommand: (
+    command: string,
+    editorState: EditorState
+  ) => DraftHandleValue = (command, eS) => {
+    if (command === 'backspace') {
+      const currContentState = eS.getCurrentContent();
+      const currSelection = eS.getSelection();
+
+      const newContentState = Modifier.replaceText(
+        currContentState,
+        currSelection.merge({
+          anchorOffset: currSelection.getStartOffset() - 1,
+          focusOffset: currSelection.getStartOffset(),
+        }),
+        ''
+      );
+
+      const newEditorState = EditorState.push(
+        eS,
+        newContentState,
+        'delete-character'
+      );
+
+      const selection = newEditorState.getSelection();
+
+      if (selection.getEndOffset() < 0) {
+        return 'not-handled';
+      }
+
+      const inlineStyles = newEditorState.getCurrentInlineStyle();
+
+      let newState = newEditorState;
+
+      if (inlineStyles.has('BOLD')) {
+        newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+      }
+      if (inlineStyles.has('UNDERLINE')) {
+        newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+      }
+      if (inlineStyles.has('REDTEXT')) {
+        newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
+      }
+
+      onChange(newState);
+      return 'handled';
     }
     return 'not-handled';
   };
 
   return (
     <div className='h-[calc(100%-110px)] mx-10 flex'>
-      <div className='border h-full p-2 w-1/2'>
+      <div className='border h-full p-2 flex-1'>
         <Editor
           ref={editor}
           placeholder='Type your text here...'
           editorState={editorState}
           onChange={onChange}
           handleBeforeInput={handleBeforeInput}
-          handleReturn={(_, eS) => {
-            const currContentState = eS.getCurrentContent();
-            const currSelection = eS.getSelection();
-
-            const newContentState = Modifier.splitBlock(
-              currContentState,
-              currSelection
-            );
-
-            const newEditorState = EditorState.push(
-              eS,
-              newContentState,
-              'split-block'
-            );
-
-            let newState = RichUtils.toggleBlockType(
-              newEditorState,
-              'unstyled'
-            );
-
-            const inlineStyles = newState.getCurrentInlineStyle();
-
-            if (inlineStyles.has('BOLD')) {
-              newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
-            }
-            if (inlineStyles.has('UNDERLINE')) {
-              newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
-            }
-            if (inlineStyles.has('REDTEXT')) {
-              newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
-            }
-
-            onChange(newState);
-            return 'handled';
-          }}
+          handleReturn={handleReturn}
+          handleKeyCommand={handleKeyCommand}
           customStyleMap={{
             REDTEXT: {
               color: 'red',
