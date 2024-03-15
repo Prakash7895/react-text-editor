@@ -11,22 +11,27 @@ function App() {
       ? EditorState.createWithContent(convertFromRaw(parsedData))
       : EditorState.createEmpty();
   });
+  const [isSaving, setIsSaving] = useState(false);
 
   const onSave = () => {
     const currContent = editorState.getCurrentContent();
     const rawContent = convertToRaw(currContent);
+    setIsSaving(true);
     localStorage.setItem('data', JSON.stringify(rawContent));
+    setTimeout(() => {
+      setIsSaving(false);
+    }, 500);
   };
 
   return (
     <div className='h-full'>
-      <div className='flex items-center justify-center pt-10 mx-10'>
+      <div className='flex items-center justify-center pt-10 mx-10 md:mx-auto max-w-2xl'>
         <p className='flex-1 text-center'>Demo Editor by Prakash</p>
         <button
-          className='px-4 py-1.5 m-3 text-gray-100 bg-violet-600 rounded'
+          className='px-4 py-1.5 m-3 rounded glass transition-all w-20'
           onClick={onSave}
         >
-          Save
+          {isSaving ? 'Saved' : 'Save'}
         </button>
       </div>
       <CustomEditor editorState={editorState} setEditorState={setEditorState} />

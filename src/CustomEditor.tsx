@@ -1,4 +1,11 @@
-import { Dispatch, FC, SetStateAction, useEffect, useRef } from 'react';
+import {
+  Dispatch,
+  FC,
+  SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   DraftHandleValue,
   Editor,
@@ -24,6 +31,7 @@ interface ICustomEditor {
 
 const CustomEditor: FC<ICustomEditor> = ({ editorState, setEditorState }) => {
   const editor = useRef<Editor>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   const onChange = (eS: EditorState) => {
     setEditorState(eS);
@@ -178,13 +186,23 @@ const CustomEditor: FC<ICustomEditor> = ({ editorState, setEditorState }) => {
 
       const selection = newEditorState.getSelection();
 
+      let newState = newEditorState;
+
+      let toggleBlockType = false;
+
       if (selection.getEndOffset() < 0) {
-        return 'not-handled';
+        if (!eS.getCurrentContent().hasText()) {
+          toggleBlockType = true;
+        }
+        if (!toggleBlockType) {
+          return 'not-handled';
+        }
+      }
+      if (toggleBlockType) {
+        newState = RichUtils.toggleBlockType(newState, 'unstyled');
       }
 
-      const inlineStyles = newEditorState.getCurrentInlineStyle();
-
-      let newState = newEditorState;
+      const inlineStyles = newState.getCurrentInlineStyle();
 
       if (inlineStyles.has('BOLD')) {
         newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
@@ -203,36 +221,35 @@ const CustomEditor: FC<ICustomEditor> = ({ editorState, setEditorState }) => {
   };
 
   return (
-    <div className='h-[calc(100%-110px)] mx-10 flex'>
-      <div className='border h-full p-2 flex-1'>
-        <Editor
-          ref={editor}
-          placeholder='Type your text here...'
-          editorState={editorState}
-          onChange={onChange}
-          handleBeforeInput={handleBeforeInput}
-          handleReturn={handleReturn}
-          handleKeyCommand={handleKeyCommand}
-          customStyleMap={{
-            REDTEXT: {
-              color: 'red',
-            },
-          }}
-          blockRendererFn={(block) => {
-            if (block.getType() === 'CODE') {
-              return {
-                component: CodeSnippet,
-                editable: true,
-              };
-            }
-          }}
-        />
-      </div>
-      <div className='border h-full w-1/2'>
-        <pre>
-          {JSON.stringify(editorState.getCurrentContent().toJS(), null, 4)}
-        </pre>
-      </div>
+    <div
+      className={`h-[calc(100%-110px)] max-h-[35rem] max-w-3xl mx-10 md:mx-auto border p-2 rounded-xl ${
+        isFocused ? 'shadow-lg border-neutral-400' : 'border-neutral-200'
+      } transition-all duration-300`}
+    >
+      <Editor
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        ref={editor}
+        placeholder={`Type your text here...\nPress # followed by space for Heading 1.\nPress \`\`\`(space) for code block.\nUse *(space) for Bold, **(space) for Red line, and ***(space) for Underline.\nPress Enter for a new line.`}
+        editorState={editorState}
+        onChange={onChange}
+        handleBeforeInput={handleBeforeInput}
+        handleReturn={handleReturn}
+        handleKeyCommand={handleKeyCommand}
+        customStyleMap={{
+          REDTEXT: {
+            color: 'red',
+          },
+        }}
+        blockRendererFn={(block) => {
+          if (block.getType() === 'CODE') {
+            return {
+              component: CodeSnippet,
+              editable: true,
+            };
+          }
+        }}
+      />
     </div>
   );
 };
