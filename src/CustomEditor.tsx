@@ -198,22 +198,23 @@ const CustomEditor: FC<ICustomEditor> = ({ editorState, setEditorState }) => {
           return 'not-handled';
         }
       }
-      if (toggleBlockType) {
-        newState = RichUtils.toggleBlockType(newState, 'unstyled');
-      }
+      if (selection.getStartOffset() <= 0) {
+        if (toggleBlockType) {
+          newState = RichUtils.toggleBlockType(newState, 'unstyled');
+        }
 
-      const inlineStyles = newState.getCurrentInlineStyle();
+        const inlineStyles = newState.getCurrentInlineStyle();
 
-      if (inlineStyles.has('BOLD')) {
-        newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+        if (inlineStyles.has('BOLD')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'BOLD');
+        }
+        if (inlineStyles.has('UNDERLINE')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
+        }
+        if (inlineStyles.has('REDTEXT')) {
+          newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
+        }
       }
-      if (inlineStyles.has('UNDERLINE')) {
-        newState = RichUtils.toggleInlineStyle(newState, 'UNDERLINE');
-      }
-      if (inlineStyles.has('REDTEXT')) {
-        newState = RichUtils.toggleInlineStyle(newState, 'REDTEXT');
-      }
-
       onChange(newState);
       return 'handled';
     }
