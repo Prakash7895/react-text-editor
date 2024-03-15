@@ -223,7 +223,7 @@ const CustomEditor: FC<ICustomEditor> = ({ editorState, setEditorState }) => {
 
   return (
     <div
-      className={`h-[calc(100%-110px)] max-h-[35rem] max-w-3xl mx-10 md:mx-auto border p-2 rounded-xl ${
+      className={`h-[calc(100%-110px)] overflow-scroll max-h-[35rem] max-w-3xl mx-10 md:mx-auto border p-2 rounded-xl ${
         isFocused ? 'shadow-lg border-neutral-400' : 'border-neutral-200'
       } transition-all duration-300`}
     >
